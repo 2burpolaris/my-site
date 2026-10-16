@@ -1,0 +1,337 @@
+<title>우리 집 장보기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  /* Layout: a sheet of lined kitchen paper with taped memo notes, one per aisle. Single warm paper look by choice. */
+  :root {
+    --paper: #f6ecd9;
+    --paper-line: #e6d6b8;
+    --card: #fffaf0;
+    --ink: #4a3b2a;
+    --ink-soft: #84705a;
+    --pencil: #7a6a58;
+    --accent: #b5643c;
+    --tape: rgba(222, 196, 140, 0.75);
+    --shadow: rgba(90, 64, 30, 0.15);
+    --font-hand: "Gaegu", "Nanum Pen Script", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--ink);
+    background-color: var(--paper);
+    background-image: repeating-linear-gradient(to bottom, transparent 0 31px, var(--paper-line) 31px 32px);
+    font-family: var(--font-hand);
+    font-size: 21px;
+  }
+  .wrap {
+    max-width: 980px; margin: 0 auto;
+    padding-block: 28px 60px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  header { text-align: center; margin-bottom: 18px; }
+  h1 { margin: 0; font-size: 46px; font-weight: 700; letter-spacing: 1px; text-wrap: balance; }
+  .date { color: var(--ink-soft); font-size: 20px; }
+  .remain { margin-top: 2px; color: var(--accent); font-size: 20px; min-height: 1.2em; font-variant-numeric: tabular-nums; }
+  .status { margin-top: 4px; color: var(--ink-soft); font-size: 17px; min-height: 1.2em; }
+
+  button, select, input { font: inherit; color: var(--ink); }
+  :focus-visible { outline: 2px dashed var(--accent); outline-offset: 3px; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; margin: 14px 0; }
+  .btn {
+    border: 2px solid var(--ink); background: var(--card); border-radius: 14px 10px 16px 9px;
+    padding: 4px 16px; cursor: pointer; box-shadow: 2px 3px 0 var(--shadow);
+  }
+  .btn:hover { background: #fff3dc; }
+  .btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--shadow); }
+  .btn.on { background: var(--ink); color: var(--card); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .confirm span { color: var(--accent); }
+
+  .add {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    background: var(--card); border: 2px dashed var(--ink-soft); border-radius: 12px;
+    padding: 12px; margin: 0 auto 26px; max-width: 640px;
+  }
+  .add input {
+    flex: 1 1 200px; min-width: 0; border: none; border-bottom: 2px solid var(--ink-soft);
+    background: transparent; padding: 2px 4px; outline: none;
+  }
+  .add input:focus { border-bottom-color: var(--accent); }
+  .add select { border: 2px solid var(--ink-soft); border-radius: 10px; background: var(--card); padding: 2px 6px; max-width: 100%; }
+
+  .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 28px 22px; }
+  .note {
+    position: relative; background: var(--card); padding: 22px 18px 14px; min-width: 0;
+    box-shadow: 3px 5px 12px var(--shadow); border-radius: 3px;
+  }
+  .note:nth-child(odd) { transform: rotate(-1deg); }
+  .note:nth-child(even) { transform: rotate(0.8deg); }
+  .note::before {
+    content: ""; position: absolute; top: -12px; left: 50%; width: 90px; height: 24px;
+    transform: translateX(-50%) rotate(-3deg); background: var(--tape);
+  }
+  .note h2 { margin: 0 0 8px; font-size: 27px; border-bottom: 2px solid var(--paper-line); padding-bottom: 4px; }
+  .note ul { list-style: none; margin: 0; padding: 0; }
+  .note .empty { color: var(--ink-soft); font-size: 18px; }
+  .item { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+  .item label { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .item input[type=checkbox] {
+    appearance: none; width: 22px; height: 22px; flex: none; margin: 0;
+    border: 2px solid var(--ink); border-radius: 5px 3px 6px 4px; background: #fff; cursor: pointer;
+    display: grid; place-content: center;
+  }
+  .item input[type=checkbox]:checked::after { content: "✔"; color: var(--accent); font-size: 20px; line-height: 1; }
+  .item input[type=checkbox]:disabled { cursor: default; opacity: .6; }
+  .item .name { position: relative; overflow-wrap: anywhere; }
+  .item.done .name { color: var(--pencil); opacity: .6; }
+  .item.done .name::after {
+    content: ""; position: absolute; left: -3px; right: -3px; top: 55%; height: 2px;
+    background: var(--pencil); transform: rotate(-2deg); border-radius: 2px;
+  }
+  .del {
+    border: none; background: none; color: var(--ink-soft); cursor: pointer; font-size: 20px;
+    padding: 0 4px; opacity: .45;
+  }
+  .item:hover .del, .del:focus { opacity: 1; }
+  .del:hover { color: var(--accent); }
+  body.hide-done .item.done { display: none; }
+  body.readonly .del, body.readonly .add, body.readonly #clearChecks { display: none; }
+
+  @media (max-width: 600px) {
+    body { font-size: 20px; }
+    h1 { font-size: 38px; }
+    .board { grid-template-columns: 1fr; }
+    .del { opacity: .8; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .note:nth-child(odd), .note:nth-child(even) { transform: none; }
+  }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>🛒 우리 집 장보기</h1>
+    <div class="date" id="date"></div>
+    <div class="remain" id="remain"></div>
+    <div class="status" id="status">목록을 불러오는 중이에요…</div>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn" id="toggleHide" type="button">산 항목 숨기기</button>
+    <button class="btn" id="clearChecks" type="button">체크 모두 풀기</button>
+    <div class="confirm" id="confirmBox" hidden>
+      <span>모든 체크를 풀까요? 항목은 그대로 남아요.</span>
+      <button class="btn" id="confirmYes" type="button">네, 풀어요</button>
+      <button class="btn" id="confirmNo" type="button">아니요</button>
+    </div>
+  </div>
+
+  <form class="add" id="addForm" autocomplete="off">
+    <input id="newName" type="text" placeholder="사야 할 것을 적어 주세요" maxlength="40" aria-label="새 항목 이름">
+    <select id="newCat" aria-label="종류"></select>
+    <button class="btn" id="addBtn" type="submit">추가</button>
+  </form>
+
+  <main class="board" id="board"></main>
+</div>
+
+<script>
+  const CATEGORIES = [
+    { id: "veg", label: "🥬 채소·과일" },
+    { id: "meat", label: "🥩 고기·생선" },
+    { id: "dairy", label: "🥛 유제품·계란" },
+    { id: "grain", label: "🍚 곡물·가공식품" },
+    { id: "home", label: "🧻 생활용품" }
+  ];
+  const HIDE_KEY = "shopping-hide-done";
+
+  let items = [];        // [{id, name, cat, done, createdAt}]
+  let db = null;
+  let col = null;
+  let canWrite = true;
+  let loaded = false;
+  let hideDone = false;
+  try { hideDone = localStorage.getItem(HIDE_KEY) === "1"; } catch (e) {}
+
+  const board = document.getElementById("board");
+  const catSelect = document.getElementById("newCat");
+  const hideBtn = document.getElementById("toggleHide");
+  const clearBtn = document.getElementById("clearChecks");
+  const confirmBox = document.getElementById("confirmBox");
+  const statusEl = document.getElementById("status");
+
+  for (const c of CATEGORIES) {
+    const opt = document.createElement("option");
+    opt.value = c.id; opt.textContent = c.label;
+    catSelect.appendChild(opt);
+  }
+
+  document.getElementById("date").textContent =
+    new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+
+  function setStatus(text) { statusEl.textContent = text; }
+
+  function setReadOnly(msg) {
+    canWrite = false;
+    document.body.classList.add("readonly");
+    setStatus(msg);
+    render();
+  }
+
+  async function write(fn) {
+    if (!col || !canWrite) return;
+    try { await fn(); }
+    catch (e) {
+      if (e && e.code === "invalid_argument") setReadOnly("보기만 할 수 있어요. 바꾸려면 공유한 사람에게 편집 권한을 받아 주세요.");
+      else if (e && e.code === "quota_exceeded") setStatus("저장 공간이 꽉 찼어요. 필요 없는 항목을 지워 주세요.");
+      else setStatus("저장하지 못했어요. 잠시 뒤 다시 해 주세요.");
+    }
+  }
+
+  function render() {
+    board.innerHTML = "";
+    for (const c of CATEGORIES) {
+      const note = document.createElement("section");
+      note.className = "note";
+      const h = document.createElement("h2");
+      h.textContent = c.label;
+      note.appendChild(h);
+
+      const ul = document.createElement("ul");
+      const list = items.filter(i => i.cat === c.id);
+      const visible = hideDone ? list.filter(i => !i.done) : list;
+      if (visible.length === 0) {
+        const p = document.createElement("li");
+        p.className = "empty";
+        p.textContent = !loaded ? "불러오는 중…" : (list.length ? "다 샀어요! 🎉" : "아직 항목이 없어요. 위에서 추가해 보세요");
+        ul.appendChild(p);
+      }
+      for (const item of list) {
+        const li = document.createElement("li");
+        li.className = "item" + (item.done ? " done" : "");
+
+        const label = document.createElement("label");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.id = "cb-" + item.id;
+        cb.checked = item.done;
+        cb.disabled = !canWrite || !col;
+        cb.addEventListener("change", () => {
+          const done = cb.checked;
+          write(() => col.doc(item.id).update({ done }));
+        });
+        const span = document.createElement("span");
+        span.className = "name";
+        span.textContent = item.name;
+        label.append(cb, span);
+
+        const del = document.createElement("button");
+        del.className = "del";
+        del.type = "button";
+        del.title = "삭제";
+        del.setAttribute("aria-label", item.name + " 삭제");
+        del.textContent = "✕";
+        del.addEventListener("click", () => write(() => col.doc(item.id).delete()));
+
+        li.append(label, del);
+        ul.appendChild(li);
+      }
+      note.appendChild(ul);
+      board.appendChild(note);
+    }
+
+    document.body.classList.toggle("hide-done", hideDone);
+    hideBtn.textContent = hideDone ? "산 항목 보이기" : "산 항목 숨기기";
+    hideBtn.classList.toggle("on", hideDone);
+    clearBtn.disabled = !items.some(i => i.done);
+
+    const total = items.length;
+    const left = items.filter(i => !i.done).length;
+    document.getElementById("remain").textContent =
+      !loaded || total === 0 ? "" : (left === 0 ? "모두 샀어요! 🎉" : `살 것 ${left}개 남았어요 (전체 ${total}개)`);
+  }
+
+  document.getElementById("addForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const input = document.getElementById("newName");
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    if (!col) { setStatus("아직 연결되지 않았어요. 잠시 뒤 다시 해 주세요."); return; }
+    const cat = catSelect.value;
+    input.value = "";
+    input.focus();
+    write(() => col.add({ name, cat, done: false, createdAt: Date.now() }));
+  });
+
+  hideBtn.addEventListener("click", () => {
+    hideDone = !hideDone;
+    try { localStorage.setItem(HIDE_KEY, hideDone ? "1" : "0"); } catch (e) {}
+    render();
+  });
+
+  clearBtn.addEventListener("click", () => {
+    if (!items.some(i => i.done)) return;
+    clearBtn.hidden = true;
+    confirmBox.hidden = false;
+  });
+  document.getElementById("confirmNo").addEventListener("click", () => {
+    confirmBox.hidden = true; clearBtn.hidden = false;
+  });
+  document.getElementById("confirmYes").addEventListener("click", async () => {
+    confirmBox.hidden = true; clearBtn.hidden = false;
+    const done = items.filter(i => i.done);
+    for (const i of done) await write(() => col.doc(i.id).update({ done: false }));
+  });
+
+  render();
+
+  function subscribe() {
+    col.orderBy("createdAt").onSnapshot(snap => {
+      items = snap.docs.map(d => {
+        const v = d.data() || {};
+        return {
+          id: d.id,
+          name: String(v.name || "").slice(0, 40),
+          cat: CATEGORIES.some(c => c.id === v.cat) ? v.cat : "home",
+          done: !!v.done,
+          createdAt: Number(v.createdAt) || 0
+        };
+      });
+      loaded = true;
+      if (canWrite) setStatus("가족 모두에게 똑같이 보여요. 바꾸면 바로 저장돼요.");
+      render();
+    }, err => {
+      if (err && err.code === "unavailable") { setTimeout(subscribe, 3000 + Math.random() * 2000); return; }
+      loaded = true;
+      setStatus("목록을 불러오지 못했어요. 새로고침해 주세요.");
+      render();
+    });
+  }
+
+  (async () => {
+    db = await claude.use("db");
+    if (!db) {
+      loaded = true;
+      setReadOnly("목록을 보려면 claude.ai에 로그인한 상태로 열어 주세요.");
+      return;
+    }
+    col = db.collection("items");
+    const user = await claude.use("user");
+    if (user) {
+      try {
+        const may = await user.can("data.write");
+        if (may === false) setReadOnly("보기만 할 수 있어요. 바꾸려면 공유한 사람에게 편집 권한을 받아 주세요.");
+      } catch (e) {}
+    }
+    render();
+    subscribe();
+  })();
+</script>

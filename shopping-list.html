@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>우리 집 장보기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f6ecd9;
+    --paper-line: #e6d6b8;
+    --card: #fffaf0;
+    --ink: #4a3b2a;
+    --ink-soft: #8a7559;
+    --pencil: #7a6a58;
+    --accent: #b5643c;
+    --tape: rgba(222, 196, 140, 0.75);
+    --shadow: rgba(90, 64, 30, 0.15);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    color: var(--ink);
+    background-color: var(--paper);
+    background-image: repeating-linear-gradient(to bottom, transparent 0 31px, var(--paper-line) 31px 32px);
+    font-family: "Gaegu", "Nanum Pen Script", "Malgun Gothic", sans-serif;
+    font-size: 21px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 28px 16px 60px; }
+  header { text-align: center; margin-bottom: 18px; }
+  h1 { margin: 0; font-size: 46px; font-weight: 700; letter-spacing: 1px; }
+  .date { color: var(--ink-soft); font-size: 20px; }
+  .remain { margin-top: 2px; color: var(--accent); font-size: 20px; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 14px 0; }
+  button, select, input {
+    font: inherit; color: var(--ink);
+  }
+  .btn {
+    border: 2px solid var(--ink); background: var(--card); border-radius: 14px 10px 16px 9px;
+    padding: 4px 16px; cursor: pointer; box-shadow: 2px 3px 0 var(--shadow);
+  }
+  .btn:hover { background: #fff3dc; }
+  .btn:active { transform: translate(1px, 1px); box-shadow: 1px 1px 0 var(--shadow); }
+  .btn.on { background: var(--ink); color: var(--card); }
+
+  .add {
+    display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+    background: var(--card); border: 2px dashed var(--ink-soft); border-radius: 12px;
+    padding: 12px; margin: 0 auto 26px; max-width: 640px;
+  }
+  .add input {
+    flex: 1 1 200px; min-width: 0; border: none; border-bottom: 2px solid var(--ink-soft);
+    background: transparent; padding: 2px 4px; outline: none;
+  }
+  .add input:focus { border-bottom-color: var(--accent); }
+  .add select { border: 2px solid var(--ink-soft); border-radius: 10px; background: var(--card); padding: 2px 6px; }
+
+  .board { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 28px 22px; }
+  .note {
+    position: relative; background: var(--card); padding: 22px 18px 14px;
+    box-shadow: 3px 5px 12px var(--shadow); border-radius: 3px;
+  }
+  .note:nth-child(odd) { transform: rotate(-1deg); }
+  .note:nth-child(even) { transform: rotate(0.8deg); }
+  .note::before {
+    content: ""; position: absolute; top: -12px; left: 50%; width: 90px; height: 24px;
+    transform: translateX(-50%) rotate(-3deg); background: var(--tape);
+  }
+  .note h2 { margin: 0 0 8px; font-size: 27px; border-bottom: 2px solid var(--paper-line); padding-bottom: 4px; }
+  .note ul { list-style: none; margin: 0; padding: 0; }
+  .note .empty { color: var(--ink-soft); font-size: 18px; }
+  .item { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+  .item label { flex: 1; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .item input[type=checkbox] {
+    appearance: none; width: 22px; height: 22px; flex: none; margin: 0;
+    border: 2px solid var(--ink); border-radius: 5px 3px 6px 4px; background: #fff; cursor: pointer;
+    display: grid; place-content: center;
+  }
+  .item input[type=checkbox]:checked::after { content: "✔"; color: var(--accent); font-size: 20px; line-height: 1; }
+  .item .name { position: relative; }
+  .item.done .name { color: var(--pencil); opacity: .6; }
+  .item.done .name::after {
+    content: ""; position: absolute; left: -3px; right: -3px; top: 55%; height: 2px;
+    background: var(--pencil); transform: rotate(-2deg); border-radius: 2px;
+  }
+  .del {
+    border: none; background: none; color: var(--ink-soft); cursor: pointer; font-size: 20px;
+    padding: 0 4px; opacity: .45;
+  }
+  .item:hover .del, .del:focus { opacity: 1; }
+  .del:hover { color: var(--accent); }
+  body.hide-done .item.done { display: none; }
+
+  @media (max-width: 600px) {
+    body { font-size: 20px; }
+    h1 { font-size: 38px; }
+    .board { grid-template-columns: 1fr; }
+    .del { opacity: .8; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🛒 우리 집 장보기</h1>
+    <div class="date" id="date"></div>
+    <div class="remain" id="remain"></div>
+  </header>
+
+  <div class="toolbar">
+    <button class="btn" id="toggleHide" type="button">산 항목 숨기기</button>
+    <button class="btn" id="clearChecks" type="button">체크 모두 풀기</button>
+  </div>
+
+  <form class="add" id="addForm" autocomplete="off">
+    <input id="newName" type="text" placeholder="사야 할 것을 적어 주세요" maxlength="40" aria-label="새 항목 이름">
+    <select id="newCat" aria-label="종류"></select>
+    <button class="btn" type="submit">추가</button>
+  </form>
+
+  <main class="board" id="board"></main>
+</div>
+
+<script>
+  const STORE_KEY = "our-home-shopping-list-v1";
+  const CATEGORIES = [
+    { id: "veg", label: "🥬 채소·과일" },
+    { id: "meat", label: "🥩 고기·생선" },
+    { id: "dairy", label: "🥛 유제품·계란" },
+    { id: "grain", label: "🍚 곡물·가공식품" },
+    { id: "home", label: "🧻 생활용품" }
+  ];
+  const DEFAULT_ITEMS = {
+    veg: ["양파", "대파", "감자", "사과"],
+    meat: ["돼지고기", "닭고기", "고등어"],
+    dairy: ["우유", "계란", "치즈"],
+    grain: ["쌀", "두부", "라면"],
+    home: ["휴지", "주방세제", "키친타월"]
+  };
+
+  function newId() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+  function defaultState() {
+    const items = [];
+    for (const c of CATEGORIES) for (const name of DEFAULT_ITEMS[c.id]) items.push({ id: newId(), name, cat: c.id, done: false });
+    return { items, hideDone: false };
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (s && Array.isArray(s.items)) return { items: s.items, hideDone: !!s.hideDone };
+      }
+    } catch (e) {}
+    return defaultState();
+  }
+
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+  }
+
+  let state = load();
+
+  const board = document.getElementById("board");
+  const catSelect = document.getElementById("newCat");
+  const hideBtn = document.getElementById("toggleHide");
+
+  for (const c of CATEGORIES) {
+    const opt = document.createElement("option");
+    opt.value = c.id; opt.textContent = c.label;
+    catSelect.appendChild(opt);
+  }
+
+  document.getElementById("date").textContent =
+    new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+
+  function render() {
+    board.innerHTML = "";
+    for (const c of CATEGORIES) {
+      const note = document.createElement("section");
+      note.className = "note";
+      const h = document.createElement("h2");
+      h.textContent = c.label;
+      note.appendChild(h);
+
+      const ul = document.createElement("ul");
+      const list = state.items.filter(i => i.cat === c.id);
+      const visible = state.hideDone ? list.filter(i => !i.done) : list;
+      if (visible.length === 0) {
+        const p = document.createElement("li");
+        p.className = "empty";
+        p.textContent = list.length ? "다 샀어요! 🎉" : "아직 항목이 없어요";
+        ul.appendChild(p);
+      }
+      for (const item of list) {
+        const li = document.createElement("li");
+        li.className = "item" + (item.done ? " done" : "");
+
+        const label = document.createElement("label");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = item.done;
+        cb.addEventListener("change", () => { item.done = cb.checked; save(); render(); });
+        const span = document.createElement("span");
+        span.className = "name";
+        span.textContent = item.name;
+        label.append(cb, span);
+
+        const del = document.createElement("button");
+        del.className = "del";
+        del.type = "button";
+        del.title = "삭제";
+        del.setAttribute("aria-label", item.name + " 삭제");
+        del.textContent = "✕";
+        del.addEventListener("click", () => {
+          state.items = state.items.filter(i => i.id !== item.id);
+          save(); render();
+        });
+
+        li.append(label, del);
+        ul.appendChild(li);
+      }
+      note.appendChild(ul);
+      board.appendChild(note);
+    }
+
+    document.body.classList.toggle("hide-done", state.hideDone);
+    hideBtn.textContent = state.hideDone ? "산 항목 보이기" : "산 항목 숨기기";
+    hideBtn.classList.toggle("on", state.hideDone);
+
+    const total = state.items.length;
+    const left = state.items.filter(i => !i.done).length;
+    document.getElementById("remain").textContent =
+      total === 0 ? "" : (left === 0 ? "모두 샀어요! 🎉" : `살 것 ${left}개 남았어요 (전체 ${total}개)`);
+  }
+
+  document.getElementById("addForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const input = document.getElementById("newName");
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+    state.items.push({ id: newId(), name, cat: catSelect.value, done: false });
+    save(); render();
+    input.value = "";
+    input.focus();
+  });
+
+  hideBtn.addEventListener("click", () => { state.hideDone = !state.hideDone; save(); render(); });
+
+  document.getElementById("clearChecks").addEventListener("click", () => {
+    if (!state.items.some(i => i.done)) return;
+    if (!confirm("모든 체크를 풀까요? 항목은 그대로 남아요.")) return;
+    state.items.forEach(i => { i.done = false; });
+    save(); render();
+  });
+
+  render();
+</script>
+</body>
+</html>
