@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>11월 원데이 클래스 모션</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Gowun+Dodum&display=swap" rel="stylesheet">
+<style>
+  :root { --bg: #1a1416; --fg: #f5ece0; --btn: #f2b134; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--fg);
+    font-family: "Gowun Dodum", sans-serif;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+    padding: 16px;
+  }
+  canvas {
+    height: min(80vh, calc((100vw - 32px) * 16 / 9));
+    aspect-ratio: 9 / 16; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,.5);
+  }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  button {
+    font: inherit; font-size: 15px; padding: 10px 18px; border-radius: 999px; border: 0;
+    background: var(--btn); color: #2a1a12; cursor: pointer; font-weight: 700;
+  }
+  button.ghost { background: transparent; color: var(--fg); border: 1px solid #f5ece055; }
+  button:disabled { opacity: .5; cursor: default; }
+  #status { font-size: 13px; opacity: .7; min-height: 1em; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<div class="bar">
+  <button id="replay" class="ghost">▶ 다시 재생</button>
+  <button id="rec">⬇ 동영상으로 저장 (5초)</button>
+</div>
+<div id="status"></div>
+
+<script>
+const W = 1080, H = 1920, DURATION = 5;
+const cv = document.getElementById('c');
+const ctx = cv.getContext('2d');
+
+const C = {
+  bg1: '#4a1e2c', bg2: '#8a3a3a', cream: '#fff4e0',
+  mustard: '#f2b134', coral: '#ef6f51', plum: '#2b1220'
+};
+
+// 글자 배치: 줄마다 [텍스트, 색]
+const LINES = [
+  { text: '11월', color: C.mustard },
+  { text: '원데이', color: C.cream },
+  { text: '클래스', color: C.cream },
+];
+const FONT_SIZE = 290, LINE_H = 330;
+const START = 0.45, STAGGER = 0.2, POP = 0.55;
+
+let glyphs = [];
+function layout() {
+  ctx.font = `${FONT_SIZE}px "Black Han Sans"`;
+  glyphs = [];
+  let i = 0;
+  const top = H / 2 - (LINES.length - 1) * LINE_H / 2 - 60;
+  LINES.forEach((line, li) => {
+    const chars = [...line.text];
+    const widths = chars.map(ch => ctx.measureText(ch).width);
+    const gap = 6;
+    const total = widths.reduce((a, b) => a + b, 0) + gap * (chars.length - 1);
+    let x = W / 2 - total / 2;
+    chars.forEach((ch, ci) => {
+      glyphs.push({
+        ch, color: line.color,
+        x: x + widths[ci] / 2, y: top + li * LINE_H,
+        t0: START + i * STAGGER,
+        tilt: (i % 2 ? 1 : -1) * (8 + (i * 37) % 10),
+      });
+      x += widths[ci] + gap;
+      i++;
+    });
+  });
+}
+
+// 이징
+const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+const easeOutBack = t => { const c1 = 2.2, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
+const easeOutCubic = t => 1 - Math.pow(1 - t, 3);
+const easeInOut = t => t < .5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+// 떠다니는 배경 동그라미 (고정 시드)
+const dots = Array.from({ length: 26 }, (_, k) => {
+  const r = n => (Math.sin(k * 127.1 + n * 311.7) * 43758.5453) % 1;
+  const a = Math.abs;
+  return { x: a(r(1)) * W, y: a(r(2)) * H, rad: 6 + a(r(3)) * 22, sp: 20 + a(r(4)) * 50,
+           col: [C.mustard, C.coral, C.cream][k % 3], ph: a(r(5)) * 6.28 };
+});
+
+function drawBackground(t) {
+  const g = ctx.createLinearGradient(0, 0, W * 0.4, H);
+  g.addColorStop(0, C.bg1); g.addColorStop(1, C.bg2);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // 중앙의 큰 원이 퍼지며 등장
+  const k = easeOutCubic(clamp(t / 0.6));
+  ctx.save();
+  ctx.globalAlpha = 0.18;
+  ctx.fillStyle = C.mustard;
+  ctx.beginPath(); ctx.arc(W / 2, H / 2 - 60, 620 * k + Math.sin(t * 2) * 12, 0, Math.PI * 2); ctx.fill();
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = C.coral;
+  ctx.beginPath(); ctx.arc(W * 0.85, H * 0.12, 260 * k, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(W * 0.1, H * 0.9, 320 * k, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+
+  dots.forEach(d => {
+    const y = ((d.y - t * d.sp) % H + H) % H;
+    const x = d.x + Math.sin(t * 1.5 + d.ph) * 18;
+    ctx.globalAlpha = 0.35 * clamp(t / 0.5);
+    ctx.fillStyle = d.col;
+    ctx.beginPath(); ctx.arc(x, y, d.rad, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+
+function drawGlyph(g, t) {
+  const p = (t - g.t0) / POP;
+  if (p <= 0) return;
+  const q = clamp(p);
+  const s = easeOutBack(q);
+  // 튀어나온 뒤 살짝 통통 튀는 숨쉬기
+  const settle = p > 1 ? Math.sin((t - g.t0 - POP) * 3 + g.x) * 0.015 : 0;
+  const lift = (1 - easeOutCubic(q)) * 140;
+  const rot = (1 - easeOutCubic(q)) * g.tilt * Math.PI / 180;
+  // 등장 순간 찌그러졌다 펴지기
+  const squash = 1 + Math.sin(q * Math.PI) * 0.12;
+
+  // 팝 링
+  if (q < 1) {
+    ctx.save();
+    ctx.globalAlpha = (1 - q) * 0.9;
+    ctx.strokeStyle = g.color === C.mustard ? C.coral : C.mustard;
+    ctx.lineWidth = 10 * (1 - q) + 2;
+    ctx.beginPath(); ctx.arc(g.x, g.y - FONT_SIZE * 0.05, 60 + easeOutCubic(q) * 150, 0, Math.PI * 2); ctx.stroke();
+    // 작은 불꽃
+    for (let k = 0; k < 6; k++) {
+      const a = k / 6 * Math.PI * 2 + g.t0;
+      const r = 90 + easeOutCubic(q) * 140;
+      ctx.fillStyle = k % 2 ? C.cream : C.coral;
+      ctx.beginPath(); ctx.arc(g.x + Math.cos(a) * r, g.y - 15 + Math.sin(a) * r, 10 * (1 - q), 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  ctx.save();
+  ctx.translate(g.x, g.y + lift);
+  ctx.rotate(rot);
+  ctx.scale(s * (1 / squash) + settle, s * squash + settle);
+  ctx.globalAlpha = clamp(q * 4);
+  ctx.font = `${FONT_SIZE}px "Black Han Sans"`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // 입체 그림자
+  ctx.fillStyle = C.plum;
+  ctx.fillText(g.ch, 10, 14);
+  ctx.fillStyle = g.color;
+  ctx.fillText(g.ch, 0, 0);
+  ctx.restore();
+}
+
+function drawSubtitle(t) {
+  const last = glyphs[glyphs.length - 1].t0 + POP;
+  const p = easeOutCubic(clamp((t - last) / 0.6));
+  if (p <= 0) return;
+  const y = H / 2 + LINE_H * 1.5 + 70;
+  // 밑줄이 그려짐
+  ctx.save();
+  ctx.strokeStyle = C.mustard; ctx.lineWidth = 8; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(W / 2 - 260 * p, y - 50); ctx.lineTo(W / 2 + 260 * p, y - 50); ctx.stroke();
+  ctx.globalAlpha = p;
+  ctx.fillStyle = C.cream;
+  ctx.font = '600 52px "Gowun Dodum"';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.letterSpacing = '14px';
+  ctx.fillText('ONE DAY CLASS', W / 2 + 7, y + 20 + (1 - p) * 30);
+  ctx.letterSpacing = '0px';
+  // 상단 배지
+  const bp = easeOutBack(clamp((t - last - 0.2) / 0.5));
+  ctx.translate(W / 2, 330);
+  ctx.scale(bp, bp);
+  ctx.fillStyle = C.coral;
+  roundRect(-190, -50, 380, 100, 50); ctx.fill();
+  ctx.fillStyle = C.cream;
+  ctx.font = '700 48px "Gowun Dodum"';
+  ctx.fillText('NOVEMBER', 0, 4);
+  ctx.restore();
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+
+function render(t) {
+  drawBackground(t);
+  glyphs.forEach(g => drawGlyph(g, t));
+  drawSubtitle(t);
+  // 마지막 0.3초는 살짝 어둡게 (반복 재생 시 자연스럽게)
+  const fade = clamp((t - (DURATION - 0.3)) / 0.3);
+  if (fade > 0) { ctx.fillStyle = `rgba(26,20,22,${easeInOut(fade)})`; ctx.fillRect(0, 0, W, H); }
+}
+
+let startAt = 0, loop = true, onEnd = null;
+function frame(now) {
+  let t = (now - startAt) / 1000;
+  if (t >= DURATION) {
+    if (onEnd) { render(DURATION - 0.001); const f = onEnd; onEnd = null; f(); }
+    if (loop) { startAt = now; t = 0; } else { return; }
+  }
+  render(t);
+  requestAnimationFrame(frame);
+}
+function play() { startAt = performance.now(); }
+
+const status = document.getElementById('status');
+document.getElementById('replay').onclick = play;
+
+document.getElementById('rec').onclick = () => {
+  const btn = document.getElementById('rec');
+  const types = ['video/mp4;codecs=avc1', 'video/mp4', 'video/webm;codecs=vp9', 'video/webm'];
+  const mime = types.find(m => window.MediaRecorder && MediaRecorder.isTypeSupported(m));
+  if (!mime) { status.textContent = '이 브라우저는 동영상 저장을 지원하지 않아요. Chrome에서 열어 주세요.'; return; }
+  const ext = mime.startsWith('video/mp4') ? 'mp4' : 'webm';
+  const rec = new MediaRecorder(cv.captureStream(30), { mimeType: mime, videoBitsPerSecond: 12_000_000 });
+  const chunks = [];
+  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  rec.onstop = () => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(chunks, { type: mime }));
+    a.download = `11월-원데이클래스.${ext}`;
+    a.click();
+    status.textContent = `저장 완료 (${ext.toUpperCase()}, 1080×1920)`;
+    btn.disabled = false;
+  };
+  btn.disabled = true;
+  status.textContent = '녹화 중… 5초만 기다려 주세요';
+  rec.start();
+  play();
+  onEnd = () => rec.stop();
+};
+
+document.fonts.load(`${FONT_SIZE}px "Black Han Sans"`).then(() => document.fonts.load('52px "Gowun Dodum"'))
+  .catch(() => {}).finally(() => { layout(); play(); requestAnimationFrame(frame); });
+</script>
+</body>
